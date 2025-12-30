@@ -105,7 +105,7 @@ export function Sidebar({
                   <Card
                     key={column.id}
                     className={`p-3 space-y-2 cursor-pointer transition-colors ${
-                      selectedColumn === column.id ? "ring-2 ring-primary bg-primary/10" : "hover:bg-muted/30"
+                      selectedColumn === column.id ? "ring-2 ring-primary bg-white/10" : "hover:bg-muted/30"
                     }`}
                     onClick={() => onSelectColumn(column.id)}
                   >
