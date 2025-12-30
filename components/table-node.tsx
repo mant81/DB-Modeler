@@ -8,11 +8,13 @@ import { useState, useRef, useEffect } from "react"
 interface TableNodeProps {
   table: Table
   isSelected: boolean
+  selectedColumn: string | null
+  onSelectColumn: (columnId: string) => void
   onSelect: () => void
   onMove: (id: string, x: number, y: number) => void
 }
 
-export function TableNode({ table, isSelected, onSelect, onMove }: TableNodeProps) {
+export function TableNode({ table, isSelected, selectedColumn, onSelectColumn, onSelect, onMove }: TableNodeProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const nodeRef = useRef<HTMLDivElement>(null)
@@ -53,19 +55,33 @@ export function TableNode({ table, isSelected, onSelect, onMove }: TableNodeProp
         zIndex: isSelected ? 10 : 1,
       }}
       onMouseDown={(e) => {
-        setIsDragging(true)
-        setDragStart({ x: e.clientX, y: e.clientY })
-        onSelect()
+        if ((e.target as HTMLElement).closest("[data-table-header]")) {
+          setIsDragging(true)
+          setDragStart({ x: e.clientX, y: e.clientY })
+          onSelect()
+        }
       }}
     >
-      <div className="bg-primary text-primary-foreground px-3 py-2 font-semibold rounded-t-lg">{table.name}</div>
+      <div data-table-header className="bg-primary text-primary-foreground px-3 py-2 font-semibold rounded-t-lg">
+        {table.name}
+      </div>
       <div className="p-0">
         {table.columns.length === 0 ? (
           <div className="px-3 py-4 text-center text-sm text-muted-foreground">No columns yet</div>
         ) : (
           <div className="divide-y divide-border">
             {table.columns.map((column) => (
-              <div key={column.id} className="px-3 py-2 flex items-center justify-between hover:bg-muted/50 text-sm">
+              <div
+                key={column.id}
+                className={`px-3 py-2 flex items-center justify-between text-sm cursor-pointer transition-colors ${
+                  selectedColumn === column.id ? "bg-primary/20 font-semibold" : "hover:bg-muted/50"
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelectColumn(column.id)
+                  onSelect()
+                }}
+              >
                 <div className="flex items-center gap-2">
                   {column.isPrimary && <Key className="w-3 h-3 text-primary" />}
                   {column.isForeign && <LinkIcon className="w-3 h-3 text-accent" />}

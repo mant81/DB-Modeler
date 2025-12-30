@@ -14,12 +14,22 @@ import { Textarea } from "@/components/ui/textarea"
 interface SidebarProps {
   tables: Table[]
   selectedTable: string | null
+  selectedColumn: string | null
+  onSelectColumn: (id: string | null) => void
   onSelectTable: (id: string | null) => void
   onUpdateTable: (id: string, updates: Partial<Table>) => void
   onDeleteTable: (id: string) => void
 }
 
-export function Sidebar({ tables, selectedTable, onSelectTable, onUpdateTable, onDeleteTable }: SidebarProps) {
+export function Sidebar({
+  tables,
+  selectedTable,
+  selectedColumn,
+  onSelectColumn,
+  onSelectTable,
+  onUpdateTable,
+  onDeleteTable,
+}: SidebarProps) {
   const selected = tables.find((t) => t.id === selectedTable)
 
   return (
@@ -92,7 +102,13 @@ export function Sidebar({ tables, selectedTable, onSelectTable, onUpdateTable, o
 
               <div className="space-y-3">
                 {selected.columns.map((column, idx) => (
-                  <Card key={column.id} className="p-3 space-y-2">
+                  <Card
+                    key={column.id}
+                    className={`p-3 space-y-2 cursor-pointer transition-colors ${
+                      selectedColumn === column.id ? "ring-2 ring-primary bg-primary/10" : "hover:bg-muted/30"
+                    }`}
+                    onClick={() => onSelectColumn(column.id)}
+                  >
                     <div className="flex items-center gap-2">
                       <Input
                         value={column.name}

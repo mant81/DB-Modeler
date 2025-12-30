@@ -47,6 +47,7 @@ export default function DBModelerPage() {
   const [tables, setTables] = useState<Table[]>([])
   const [relationships, setRelationships] = useState<Relationship[]>([])
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
+  const [selectedColumn, setSelectedColumn] = useState<string | null>(null)
   const [showCode, setShowCode] = useState(false)
 
   useEffect(() => {
@@ -121,6 +122,8 @@ export default function DBModelerPage() {
         <Sidebar
           tables={tables}
           selectedTable={selectedTable}
+          selectedColumn={selectedColumn}
+          onSelectColumn={setSelectedColumn}
           onSelectTable={setSelectedTable}
           onUpdateTable={(id, updates) => {
             setTables(tables.map((t) => (t.id === id ? { ...t, ...updates } : t)))
@@ -136,6 +139,8 @@ export default function DBModelerPage() {
           tables={tables}
           relationships={relationships}
           selectedTable={selectedTable}
+          selectedColumn={selectedColumn}
+          onSelectColumn={setSelectedColumn}
           onSelectTable={setSelectedTable}
           onUpdateTablePosition={(id, x, y) => {
             setTables(tables.map((t) => (t.id === id ? { ...t, x, y } : t)))
