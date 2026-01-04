@@ -101,171 +101,198 @@ export function Sidebar({
               </div>
 
               <div className="space-y-3">
-                {selected.columns.map((column, idx) => (
-                  <Card
-                    key={column.id}
-                    className={`p-3 space-y-2 cursor-pointer transition-colors ${
-                      selectedColumn === column.id ? "ring-2 ring-primary bg-white/10" : "hover:bg-muted/30"
-                    }`}
-                    onClick={() => onSelectColumn(column.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={column.name}
-                        onChange={(e) => {
-                          const updated = [...selected.columns]
-                          updated[idx] = { ...updated[idx], name: e.target.value }
-                          onUpdateTable(selected.id, { columns: updated })
-                        }}
-                        placeholder="column_name"
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          onUpdateTable(selected.id, {
-                            columns: selected.columns.filter((c) => c.id !== column.id),
-                          })
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+                {selected.columns.map((column, idx) => {
+                  const needsSize = ["VARCHAR", "CHAR", "DECIMAL", "NUMERIC"].includes(column.type.split("(")[0])
 
-                    <Select
-                      value={column.type}
-                      onValueChange={(value) => {
-                        const updated = [...selected.columns]
-                        updated[idx] = { ...updated[idx], type: value }
-                        onUpdateTable(selected.id, { columns: updated })
-                      }}
+                  return (
+                    <Card
+                      key={column.id}
+                      className={`p-3 space-y-2 cursor-pointer transition-colors ${
+                        selectedColumn === column.id ? "ring-2 ring-primary" : "hover:bg-muted/30"
+                      }`}
+                      onClick={() => onSelectColumn(column.id)}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="INT">INT</SelectItem>
-                        <SelectItem value="BIGINT">BIGINT</SelectItem>
-                        <SelectItem value="VARCHAR(255)">VARCHAR(255)</SelectItem>
-                        <SelectItem value="TEXT">TEXT</SelectItem>
-                        <SelectItem value="BOOLEAN">BOOLEAN</SelectItem>
-                        <SelectItem value="DATE">DATE</SelectItem>
-                        <SelectItem value="TIMESTAMP">TIMESTAMP</SelectItem>
-                        <SelectItem value="DECIMAL">DECIMAL</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Input
-                      value={column.comment || ""}
-                      onChange={(e) => {
-                        const updated = [...selected.columns]
-                        updated[idx] = { ...updated[idx], comment: e.target.value }
-                        onUpdateTable(selected.id, { columns: updated })
-                      }}
-                      placeholder="Column comment..."
-                      className="text-xs"
-                    />
-
-                    <div className="flex items-center gap-3 text-xs">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={column.isPrimary}
-                          onCheckedChange={(checked) => {
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={column.name}
+                          onChange={(e) => {
                             const updated = [...selected.columns]
-                            updated[idx] = { ...updated[idx], isPrimary: !!checked }
+                            updated[idx] = { ...updated[idx], name: e.target.value }
                             onUpdateTable(selected.id, { columns: updated })
                           }}
-                        />
-                        <Key className="w-3 h-3" />
-                        PK
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={column.isForeign}
-                          onCheckedChange={(checked) => {
-                            const updated = [...selected.columns]
-                            updated[idx] = { ...updated[idx], isForeign: !!checked }
-                            onUpdateTable(selected.id, { columns: updated })
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelectColumn(column.id)
                           }}
+                          placeholder="column_name"
+                          className="flex-1"
                         />
-                        <LinkIcon className="w-3 h-3" />
-                        FK
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <Checkbox
-                          checked={!column.isNullable}
-                          onCheckedChange={(checked) => {
-                            const updated = [...selected.columns]
-                            updated[idx] = { ...updated[idx], isNullable: !checked }
-                            onUpdateTable(selected.id, { columns: updated })
-                          }}
-                        />
-                        NOT NULL
-                      </label>
-                    </div>
-
-                    {column.isForeign && (
-                      <div className="space-y-2 pt-2 border-t border-border">
-                        <Label className="text-xs">References</Label>
-                        <Select
-                          value={column.foreignKey?.tableId || ""}
-                          onValueChange={(tableId) => {
-                            const updated = [...selected.columns]
-                            updated[idx] = {
-                              ...updated[idx],
-                              foreignKey: { tableId, columnId: "" },
-                            }
-                            onUpdateTable(selected.id, { columns: updated })
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onUpdateTable(selected.id, {
+                              columns: selected.columns.filter((c) => c.id !== column.id),
+                            })
                           }}
                         >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Select table" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tables
-                              .filter((t) => t.id !== selected.id)
-                              .map((table) => (
-                                <SelectItem key={table.id} value={table.id}>
-                                  {table.name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
 
-                        {column.foreignKey?.tableId && (
+                      <div className="relative">
+                        <Input
+                          list={`type-list-${column.id}`}
+                          value={column.type}
+                          onChange={(e) => {
+                            const updated = [...selected.columns]
+                            updated[idx] = { ...updated[idx], type: e.target.value }
+                            onUpdateTable(selected.id, { columns: updated })
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelectColumn(column.id)
+                          }}
+                          placeholder="VARCHAR(255)"
+                          className="font-mono text-sm"
+                        />
+                        <datalist id={`type-list-${column.id}`}>
+                          <option value="INT" />
+                          <option value="BIGINT" />
+                          <option value="SMALLINT" />
+                          <option value="VARCHAR(255)" />
+                          <option value="VARCHAR(100)" />
+                          <option value="VARCHAR(50)" />
+                          <option value="CHAR(10)" />
+                          <option value="TEXT" />
+                          <option value="BOOLEAN" />
+                          <option value="DATE" />
+                          <option value="DATETIME" />
+                          <option value="TIMESTAMP" />
+                          <option value="DECIMAL(10,2)" />
+                          <option value="DECIMAL(18,4)" />
+                          <option value="NUMERIC(10,2)" />
+                          <option value="FLOAT" />
+                          <option value="DOUBLE" />
+                        </datalist>
+                      </div>
+
+                      <Input
+                        value={column.comment || ""}
+                        onChange={(e) => {
+                          const updated = [...selected.columns]
+                          updated[idx] = { ...updated[idx], comment: e.target.value }
+                          onUpdateTable(selected.id, { columns: updated })
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSelectColumn(column.id)
+                        }}
+                        placeholder="Column comment..."
+                        className="text-xs"
+                      />
+
+                      <div className="flex items-center gap-3 text-xs">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={column.isPrimary}
+                            onCheckedChange={(checked) => {
+                              const updated = [...selected.columns]
+                              updated[idx] = { ...updated[idx], isPrimary: !!checked }
+                              onUpdateTable(selected.id, { columns: updated })
+                            }}
+                          />
+                          <Key className="w-3 h-3" />
+                          PK
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={column.isForeign}
+                            onCheckedChange={(checked) => {
+                              const updated = [...selected.columns]
+                              updated[idx] = { ...updated[idx], isForeign: !!checked }
+                              onUpdateTable(selected.id, { columns: updated })
+                            }}
+                          />
+                          <LinkIcon className="w-3 h-3" />
+                          FK
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={!column.isNullable}
+                            onCheckedChange={(checked) => {
+                              const updated = [...selected.columns]
+                              updated[idx] = { ...updated[idx], isNullable: !checked }
+                              onUpdateTable(selected.id, { columns: updated })
+                            }}
+                          />
+                          NOT NULL
+                        </label>
+                      </div>
+
+                      {column.isForeign && (
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <Label className="text-xs">References</Label>
                           <Select
-                            value={column.foreignKey?.columnId || ""}
-                            onValueChange={(columnId) => {
+                            value={column.foreignKey?.tableId || ""}
+                            onValueChange={(tableId) => {
                               const updated = [...selected.columns]
                               updated[idx] = {
                                 ...updated[idx],
-                                foreignKey: {
-                                  tableId: column.foreignKey!.tableId,
-                                  columnId,
-                                },
+                                foreignKey: { tableId, columnId: "" },
                               }
                               onUpdateTable(selected.id, { columns: updated })
                             }}
                           >
                             <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Select column" />
+                              <SelectValue placeholder="Select table" />
                             </SelectTrigger>
                             <SelectContent>
                               {tables
-                                .find((t) => t.id === column.foreignKey?.tableId)
-                                ?.columns.map((col) => (
-                                  <SelectItem key={col.id} value={col.id}>
-                                    {col.name}
+                                .filter((t) => t.id !== selected.id)
+                                .map((table) => (
+                                  <SelectItem key={table.id} value={table.id}>
+                                    {table.name}
                                   </SelectItem>
                                 ))}
                             </SelectContent>
                           </Select>
-                        )}
-                      </div>
-                    )}
-                  </Card>
-                ))}
+
+                          {column.foreignKey?.tableId && (
+                            <Select
+                              value={column.foreignKey?.columnId || ""}
+                              onValueChange={(columnId) => {
+                                const updated = [...selected.columns]
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  foreignKey: {
+                                    tableId: column.foreignKey!.tableId,
+                                    columnId,
+                                  },
+                                }
+                                onUpdateTable(selected.id, { columns: updated })
+                              }}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select column" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {tables
+                                  .find((t) => t.id === column.foreignKey?.tableId)
+                                  ?.columns.map((col) => (
+                                    <SelectItem key={col.id} value={col.id}>
+                                      {col.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  )
+                })}
               </div>
             </div>
           </div>

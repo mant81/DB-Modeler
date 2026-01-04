@@ -87,7 +87,9 @@ export function TableNode({ table, isSelected, selectedColumn, onSelectColumn, o
                   {column.isForeign && <LinkIcon className="w-3 h-3 text-accent" />}
                   <span className="font-mono">{column.name}</span>
                 </div>
-                <span className="text-muted-foreground text-xs">{column.type}</span>
+                <span className="text-muted-foreground text-xs">
+                  {column.size ? `${column.type}(${column.size})` : column.type}
+                </span>
               </div>
             ))}
           </div>
