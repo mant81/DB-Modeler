@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useSearchParams } from "next/navigation"
 
 import { DiagramCanvas } from "@/components/diagram-canvas"
 import { Toolbar } from "@/components/toolbar"
@@ -49,8 +50,28 @@ export default function DBModelerPage() {
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null)
   const [showCode, setShowCode] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
+    const shareId = searchParams.get("share")
+    if (shareId) {
+      fetch(`/api/share/${shareId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load")
+          return res.json()
+        })
+        .then((data) => {
+          setTables(data.tables || [])
+          setRelationships(data.relationships || [])
+        })
+        .catch((error) => {
+          console.error("Failed to load shared diagram:", error)
+          alert("공유된 다이어그램을 불러올 수 없습니다. 링크가 만료되었거나 잘못되었습니다.")
+        })
+      return
+    }
+
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
@@ -61,14 +82,17 @@ export default function DBModelerPage() {
         console.error("Failed to load saved data:", error)
       }
     }
-  }, [])
+  }, [searchParams])
 
   useEffect(() => {
+    const shareId = searchParams.get("share")
+    if (shareId) return
+
     if (tables.length > 0 || relationships.length > 0) {
       const data = { tables, relationships }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }
-  }, [tables, relationships])
+  }, [tables, relationships, searchParams])
 
   const handleExport = () => {
     const data = { tables, relationships }
@@ -267,6 +291,39 @@ export default function DBModelerPage() {
     reader.readAsText(file)
   }
 
+  const handleShare = async () => {
+    if (tables.length === 0) {
+      alert("공유할 테이블이 없습니다.")
+      return
+    }
+
+    setIsSharing(true)
+    try {
+      const data = { tables, relationships }
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "공유 링크 생성에 실패했습니다.")
+      }
+
+      const { id } = await res.json()
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${id}`
+
+      await navigator.clipboard.writeText(shareUrl)
+      alert(`공유 링크가 클립보드에 복사되었습니다!\n\n${shareUrl}\n\n링크는 7일간 유효합니다.`)
+    } catch (error: any) {
+      console.error("Share error:", error)
+      alert(error.message || "공유 링크 생성에 실패했습니다.")
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col bg-background">
       <Toolbar
@@ -285,6 +342,8 @@ export default function DBModelerPage() {
         onExport={handleExport}
         onExportSVG={handleExportSVG}
         onImport={handleImport}
+        onShare={handleShare}
+        isSharing={isSharing}
       />
 
       <div className="flex-1 flex overflow-hidden">
