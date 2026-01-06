@@ -31,6 +31,9 @@ export function Toolbar({ onAddTable, onToggleCode, showCode, onExport, onExport
           <Plus className="w-4 h-4 mr-1.5" />
           Add Table
         </Button>
+        <p className="text-xs text-muted-foreground">
+          모델링 데이터는 서버가 아닌 브라우저 로컬 스토리지에 저장을 합니다.
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
