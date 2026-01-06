@@ -81,6 +81,174 @@ export default function DBModelerPage() {
     URL.revokeObjectURL(url)
   }
 
+  const handleExportSVG = () => {
+    if (tables.length === 0) {
+      alert("No tables to export")
+      return
+    }
+
+    const minX = Math.min(...tables.map((t) => t.x)) - 50
+    const minY = Math.min(...tables.map((t) => t.y)) - 50
+    const maxX = Math.max(...tables.map((t) => t.x + 288)) + 50
+    const maxY = Math.max(...tables.map((t) => t.y + 60 + t.columns.length * 36)) + 50
+    const width = maxX - minX
+    const height = maxY - minY
+
+    const fkRelationships = tables.flatMap((table) =>
+      table.columns
+        .filter((col) => col.isForeign && col.foreignKey?.tableId && col.foreignKey?.columnId)
+        .map((col) => ({
+          fromTable: table,
+          fromColumn: col,
+          toTable: tables.find((t) => t.id === col.foreignKey!.tableId)!,
+          toColumn: tables
+            .find((t) => t.id === col.foreignKey!.tableId)
+            ?.columns.find((c) => c.id === col.foreignKey!.columnId)!,
+        }))
+        .filter((rel) => rel.toTable && rel.toColumn),
+    )
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX} ${minY} ${width} ${height}">
+      <defs>
+        <style>
+          .table-bg { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+          .table-header { fill: #0f172a; }
+          .table-text { fill: #f1f5f9; font-family: monospace; font-size: 14px; }
+          .table-title { fill: #60a5fa; font-weight: 600; }
+          .column-text { fill: #cbd5e1; font-size: 12px; }
+          .type-text { fill: #94a3b8; font-size: 11px; }
+          .pk-badge { fill: #fbbf24; }
+          .fk-badge { fill: #3b82f6; }
+          .connection-line { stroke: #3b82f6; stroke-width: 2; fill: none; }
+          .label-bg { fill: #1e293b; stroke: #3b82f6; stroke-width: 1; opacity: 0.95; }
+          .label-text { fill: #60a5fa; font-size: 11px; font-family: monospace; font-weight: 600; }
+        </style>
+      </defs>
+      <rect width="${width}" height="${height}" x="${minX}" y="${minY}" fill="#020617"/>\n`
+
+    tables.forEach((table) => {
+      const tableHeight = 60 + table.columns.length * 36
+      svgContent += `
+      <g>
+        <rect class="table-bg" x="${table.x}" y="${table.y}" width="288" height="${tableHeight}" rx="8"/>
+        <rect class="table-header" x="${table.x}" y="${table.y}" width="288" height="40" rx="8"/>
+        <text class="table-text table-title" x="${table.x + 12}" y="${table.y + 25}">${table.name}</text>\n`
+
+      table.columns.forEach((col, idx) => {
+        const colY = table.y + 60 + idx * 36
+        svgContent += `
+        <text class="column-text" x="${table.x + 12}" y="${colY}">${col.name}</text>
+        <text class="type-text" x="${table.x + 150}" y="${colY}">${col.type}</text>`
+
+        if (col.isPrimary) {
+          svgContent += `
+        <rect class="pk-badge" x="${table.x + 260}" y="${colY - 12}" width="20" height="16" rx="3"/>
+        <text style="fill: #0f172a; font-size: 10px; font-weight: 600;" x="${table.x + 270}" y="${colY}" textAnchor="middle">PK</text>`
+        }
+        if (col.isForeign) {
+          svgContent += `
+        <rect class="fk-badge" x="${table.x + 260}" y="${colY - 12}" width="20" height="16" rx="3"/>
+        <text style="fill: #fff; font-size: 10px; font-weight: 600;" x="${table.x + 270}" y="${colY}" textAnchor="middle">FK</text>`
+        }
+      })
+
+      svgContent += `
+      </g>\n`
+    })
+
+    fkRelationships.forEach((rel) => {
+      const fromTableHeight = 60 + rel.fromTable.columns.length * 36
+      const toTableHeight = 60 + rel.toTable.columns.length * 36
+      const tableWidth = 288
+
+      const fromCenterX = rel.fromTable.x + tableWidth / 2
+      const fromCenterY = rel.fromTable.y + fromTableHeight / 2
+      const toCenterX = rel.toTable.x + tableWidth / 2
+      const toCenterY = rel.toTable.y + toTableHeight / 2
+
+      const dx = toCenterX - fromCenterX
+      const dy = toCenterY - fromCenterY
+
+      let fromX, fromY, toX, toY, fromSide
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+          fromX = rel.fromTable.x + tableWidth
+          fromY = fromCenterY
+          fromSide = "right"
+          toX = rel.toTable.x
+          toY = toCenterY
+        } else {
+          fromX = rel.fromTable.x
+          fromY = fromCenterY
+          fromSide = "left"
+          toX = rel.toTable.x + tableWidth
+          toY = toCenterY
+        }
+      } else {
+        if (dy > 0) {
+          fromX = fromCenterX
+          fromY = rel.fromTable.y + fromTableHeight
+          fromSide = "bottom"
+          toX = toCenterX
+          toY = rel.toTable.y
+        } else {
+          fromX = fromCenterX
+          fromY = rel.fromTable.y
+          fromSide = "top"
+          toX = toCenterX
+          toY = rel.toTable.y + toTableHeight
+        }
+      }
+
+      let path
+      if (fromSide === "right" || fromSide === "left") {
+        const midX = (fromX + toX) / 2
+        path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`
+      } else {
+        const midY = (fromY + toY) / 2
+        path = `M ${fromX} ${fromY} C ${fromX} ${midY}, ${toX} ${midY}, ${toX} ${toY}`
+      }
+
+      const crowLength = 12
+      const crowAngle = Math.PI / 6
+      const angle = Math.atan2(toY - fromY, toX - fromX)
+
+      const cx1x = fromX - Math.cos(angle - crowAngle) * crowLength
+      const cx1y = fromY - Math.sin(angle - crowAngle) * crowLength
+      const cx2x = fromX - Math.cos(angle + crowAngle) * crowLength
+      const cx2y = fromY - Math.sin(angle + crowAngle) * crowLength
+      const cx3x = fromX - Math.cos(angle) * crowLength
+      const cx3y = fromY - Math.sin(angle) * crowLength
+
+      const perpAngle = angle + Math.PI / 2
+      const perpLength = 6
+      const p1x = toX + Math.cos(perpAngle) * perpLength
+      const p1y = toY + Math.sin(perpAngle) * perpLength
+      const p2x = toX - Math.cos(perpAngle) * perpLength
+      const p2y = toY - Math.sin(perpAngle) * perpLength
+
+      svgContent += `
+      <path class="connection-line" d="${path}"/>
+      <line class="connection-line" x1="${p1x}" y1="${p1y}" x2="${p2x}" y2="${p2y}"/>
+      <line class="connection-line" x1="${fromX}" y1="${fromY}" x2="${cx1x}" y2="${cx1y}"/>
+      <line class="connection-line" x1="${fromX}" y1="${fromY}" x2="${cx2x}" y2="${cx2y}"/>
+      <line class="connection-line" x1="${fromX}" y1="${fromY}" x2="${cx3x}" y2="${cx3y}"/>
+      <rect class="label-bg" x="${(fromX + toX) / 2 - 60}" y="${(fromY + toY) / 2 - 12}" width="120" height="20" rx="4"/>
+      <text class="label-text" x="${(fromX + toX) / 2}" y="${(fromY + toY) / 2}" textAnchor="middle" dominantBaseline="middle">${rel.fromColumn.name} → ${rel.toColumn.name}</text>\n`
+    })
+
+    svgContent += `</svg>`
+
+    const blob = new Blob([svgContent], { type: "image/svg+xml" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `db-diagram-${Date.now()}.svg`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -115,6 +283,7 @@ export default function DBModelerPage() {
         onToggleCode={() => setShowCode(!showCode)}
         showCode={showCode}
         onExport={handleExport}
+        onExportSVG={handleExportSVG}
         onImport={handleImport}
       />
 

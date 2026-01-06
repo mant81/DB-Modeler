@@ -3,18 +3,20 @@
 import type React from "react"
 
 import { Button } from "@/components/ui/button"
-import { Database, Code, Plus, Download, Upload } from "lucide-react"
+import { Database, Code, Plus, Download, Upload, ChevronDown } from "lucide-react"
 import { useRef } from "react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface ToolbarProps {
   onAddTable: () => void
   onToggleCode: () => void
   showCode: boolean
   onExport: () => void
+  onExportSVG: () => void
   onImport: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-export function Toolbar({ onAddTable, onToggleCode, showCode, onExport, onImport }: ToolbarProps) {
+export function Toolbar({ onAddTable, onToggleCode, showCode, onExport, onExportSVG, onImport }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -37,10 +39,19 @@ export function Toolbar({ onAddTable, onToggleCode, showCode, onExport, onImport
           <Upload className="w-4 h-4 mr-1.5" />
           Import
         </Button>
-        <Button variant="ghost" size="sm" onClick={onExport}>
-          <Download className="w-4 h-4 mr-1.5" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <Download className="w-4 h-4 mr-1.5" />
+              Export
+              <ChevronDown className="w-3 h-3 ml-1.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onExportSVG}>To SVG</DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>To JSON backup</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant={showCode ? "secondary" : "ghost"} size="sm" onClick={onToggleCode}>
           <Code className="w-4 h-4 mr-1.5" />
           SQL
