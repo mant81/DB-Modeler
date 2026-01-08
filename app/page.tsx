@@ -1,13 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useSearchParams } from "next/navigation"
-
 import { DiagramCanvas } from "@/components/diagram-canvas"
 import { Toolbar } from "@/components/toolbar"
 import { Sidebar } from "@/components/sidebar"
 import { CodePanel } from "@/components/code-panel"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export type Column = {
   id: string
@@ -51,48 +49,92 @@ export default function DBModelerPage() {
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null)
   const [showCode, setShowCode] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
-  const searchParams = useSearchParams()
+  const hasLoadedRef = useRef(false)
+  const isSharedViewRef = useRef(false)
 
   useEffect(() => {
-    const shareId = searchParams.get("share")
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
+
+    // Try multiple methods to get the share ID
+    let shareId: string | null = null
+
+    if (typeof window !== "undefined") {
+      // Method 1: URLSearchParams from window.location.search
+      const params = new URLSearchParams(window.location.search)
+      shareId = params.get("share")
+
+      // Method 2: Direct parsing from window.location.href
+      if (!shareId && window.location.href.includes("?share=")) {
+        const match = window.location.href.match(/[?&]share=([^&]+)/)
+        if (match) shareId = match[1]
+      }
+    }
+
+    console.log("[v0] Client: Share ID from URL:", shareId)
+    console.log("[v0] Client: Full URL:", typeof window !== "undefined" ? window.location.href : "N/A")
+
     if (shareId) {
+      isSharedViewRef.current = true
+      console.log("[v0] Client: Fetching shared diagram from:", `/api/share/${shareId}`)
+
       fetch(`/api/share/${shareId}`)
         .then((res) => {
-          if (!res.ok) throw new Error("Failed to load")
+          console.log("[v0] Client: Response status:", res.status)
+          console.log("[v0] Client: Response OK:", res.ok)
+          if (!res.ok) {
+            return res.json().then((err) => {
+              throw new Error(err.error || "Failed to load")
+            })
+          }
           return res.json()
         })
         .then((data) => {
-          setTables(data.tables || [])
-          setRelationships(data.relationships || [])
+          console.log("[v0] Client: Loaded shared data:", {
+            tables: data.tables?.length || 0,
+            relationships: data.relationships?.length || 0,
+            hasData: !!data,
+          })
+          if (data.tables) {
+            setTables(data.tables)
+            setRelationships(data.relationships || [])
+            console.log("[v0] Client: Successfully set tables and relationships")
+          } else {
+            console.error("[v0] Client: Invalid data structure:", data)
+            throw new Error("Invalid data structure")
+          }
         })
         .catch((error) => {
-          console.error("Failed to load shared diagram:", error)
+          console.error("[v0] Client: Failed to load shared diagram:", error)
+          console.error("[v0] Client: Error details:", {
+            message: error.message,
+            stack: error.stack,
+          })
           alert("공유된 다이어그램을 불러올 수 없습니다. 링크가 만료되었거나 잘못되었습니다.")
         })
-      return
-    }
-
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const data = JSON.parse(saved)
-        setTables(data.tables || [])
-        setRelationships(data.relationships || [])
-      } catch (error) {
-        console.error("Failed to load saved data:", error)
+    } else {
+      console.log("[v0] Client: No share ID, loading from localStorage")
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        try {
+          const data = JSON.parse(saved)
+          setTables(data.tables || [])
+          setRelationships(data.relationships || [])
+        } catch (error) {
+          console.error("Failed to load saved data:", error)
+        }
       }
     }
-  }, [searchParams])
+  }, [])
 
   useEffect(() => {
-    const shareId = searchParams.get("share")
-    if (shareId) return
+    if (isSharedViewRef.current || !hasLoadedRef.current) return
 
     if (tables.length > 0 || relationships.length > 0) {
       const data = { tables, relationships }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     }
-  }, [tables, relationships, searchParams])
+  }, [tables, relationships])
 
   const handleExport = () => {
     const data = { tables, relationships }
@@ -300,11 +342,18 @@ export default function DBModelerPage() {
     setIsSharing(true)
     try {
       const data = { tables, relationships }
+      console.log("[v0] Client: Sharing data:", {
+        tables: tables.length,
+        relationships: relationships.length,
+      })
+
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
+
+      console.log("[v0] Client: Share response status:", res.status)
 
       if (!res.ok) {
         const error = await res.json()
@@ -312,12 +361,17 @@ export default function DBModelerPage() {
       }
 
       const { id } = await res.json()
-      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${id}`
+      console.log("[v0] Client: Share ID:", id)
+
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+      const shareUrl = `${baseUrl}?share=${id}`
+
+      console.log("[v0] Client: Share URL:", shareUrl)
 
       await navigator.clipboard.writeText(shareUrl)
       alert(`공유 링크가 클립보드에 복사되었습니다!\n\n${shareUrl}\n\n링크는 7일간 유효합니다.`)
     } catch (error: any) {
-      console.error("Share error:", error)
+      console.error("[v0] Client: Share error:", error)
       alert(error.message || "공유 링크 생성에 실패했습니다.")
     } finally {
       setIsSharing(false)

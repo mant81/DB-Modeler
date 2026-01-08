@@ -13,23 +13,29 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    // 현재 저장된 다이어그램 수 확인
+    console.log("[v0] API: Saving diagram with data:", {
+      tables: data.tables?.length || 0,
+      relationships: data.relationships?.length || 0,
+    })
+
     const keys = await redis.keys("diagram:*")
+    console.log("[v0] API: Current diagram count:", keys.length)
 
     if (keys.length >= MAX_DIAGRAMS) {
       return NextResponse.json({ error: "최대 저장 용량을 초과했습니다. 잠시 후 다시 시도해주세요." }, { status: 507 })
     }
 
-    // 고유 ID 생성 (8자리 랜덤)
     const id = Math.random().toString(36).substring(2, 10)
+    console.log("[v0] API: Generated ID:", id)
 
-    // Redis에 저장 (7일 TTL)
     const ttlSeconds = TTL_DAYS * 24 * 60 * 60
-    await redis.setex(`diagram:${id}`, ttlSeconds, JSON.stringify(data))
+    await redis.setex(`diagram:${id}`, ttlSeconds, data)
+
+    console.log("[v0] API: Saved to Redis with key:", `diagram:${id}`)
 
     return NextResponse.json({ id })
   } catch (error) {
-    console.error("Share error:", error)
+    console.error("[v0] API: Share error:", error)
     return NextResponse.json({ error: "공유 링크 생성에 실패했습니다." }, { status: 500 })
   }
 }
